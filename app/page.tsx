@@ -20,12 +20,24 @@ export default function Home() {
   const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural');
   const [speechRate, setSpeechRate] = useState(0);
   const [speechPitch, setSpeechPitch] = useState(0);
+  const [targetLanguage, setTargetLanguage] = useState('English');
+  const [nativeLanguage, setNativeLanguage] = useState('Korean');
+  const [autoHideContent, setAutoHideContent] = useState(true);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Reset session - clear all messages and return to starting screen
+  const resetSession = () => {
+    setMessages([]);
+    setInput("");
+    setIsLoading(false);
+    setHasUserInteractedWithTTS(false);
+  };
 
   const handleTranscript = (transcript: string) => {
     setInput(prev => prev + (prev ? ' ' : '') + transcript);
@@ -56,7 +68,9 @@ export default function Home() {
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content
-          }))
+          })),
+          targetLanguage,
+          nativeLanguage
         })
       });
 
@@ -109,7 +123,14 @@ export default function Home() {
   return (
     <main className={styles.main}>
       <div className={`${styles.hero} ${hasConversation ? styles.heroActive : ''}`}>
-        <h1 className={styles.title}>Kinora</h1>
+        <h1
+          className={`${styles.title} ${hasConversation ? styles.titleClickable : ''}`}
+          onClick={hasConversation ? resetSession : undefined}
+          style={hasConversation ? { cursor: 'pointer' } : undefined}
+          title={hasConversation ? 'Click to start new session' : undefined}
+        >
+          Kinora
+        </h1>
         <p className={styles.subtitle}>
           Master fluency with AI-driven conversations.
         </p>
@@ -124,6 +145,12 @@ export default function Home() {
         onSpeechRateChange={setSpeechRate}
         speechPitch={speechPitch}
         onSpeechPitchChange={setSpeechPitch}
+        targetLanguage={targetLanguage}
+        onTargetLanguageChange={setTargetLanguage}
+        nativeLanguage={nativeLanguage}
+        onNativeLanguageChange={setNativeLanguage}
+        autoHideContent={autoHideContent}
+        onAutoHideContentChange={setAutoHideContent}
       />
 
       <div className={styles.interactionArea}>
@@ -150,6 +177,7 @@ export default function Home() {
                   selectedVoice={selectedVoice}
                   speechRate={speechRate}
                   speechPitch={speechPitch}
+                  autoHideContent={autoHideContent}
                 />
               );
             })}
@@ -162,7 +190,7 @@ export default function Home() {
           </div>
         )}
 
-        <form className={`${styles.inputWrapper} ${hasConversation ? styles.inputActive : ''}`} onSubmit={handleSubmit}>
+        <form className={`${styles.inputWrapper} ${hasConversation ? styles.inputActive : ''} ${isVoiceRecording ? styles.inputRecording : ''}`} onSubmit={handleSubmit}>
           <textarea
             className={styles.textArea}
             placeholder="Type your message or use voice..."
@@ -180,6 +208,7 @@ export default function Home() {
             onTranscript={handleTranscript}
             onAutoSend={sendMessage}
             autoSendEnabled={autoSendEnabled}
+            onRecordingChange={setIsVoiceRecording}
           />
         </form>
       </div>

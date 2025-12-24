@@ -145,3 +145,57 @@
     color: var(--text-secondary);
     font-style: italic;
 }
+
+/* Clickable bubble for assistant messages */
+.clickableBubble {
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.clickableBubble:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Collapsed preview section */
+.collapsedPreview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+}
+
+.tapHint {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Chevron icon */
+.chevron {
+    transition: transform 0.3s ease;
+    opacity: 0.6;
+}
+
+.chevronUp {
+    transform: rotate(180deg);
+}
+
+/* Expandable content area */
+.expandableContent {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
+}
+
+.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+}
+
+.expanded {
+    max-height: 1000px;
+    opacity: 1;
+    margin-top: 0.75rem;
+}

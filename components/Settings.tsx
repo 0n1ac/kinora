@@ -12,6 +12,12 @@ interface SettingsProps {
     onSpeechRateChange: (rate: number) => void;
     speechPitch: number;
     onSpeechPitchChange: (pitch: number) => void;
+    targetLanguage: string;
+    onTargetLanguageChange: (language: string) => void;
+    nativeLanguage: string;
+    onNativeLanguageChange: (language: string) => void;
+    autoHideContent: boolean;
+    onAutoHideContentChange: (enabled: boolean) => void;
 }
 
 const VOICE_OPTIONS = [
@@ -22,6 +28,16 @@ const VOICE_OPTIONS = [
     { value: 'en-US-AvaNeural', label: 'Ava (US)' },
 ];
 
+const LANGUAGE_OPTIONS = [
+    { value: 'English', label: 'English' },
+    { value: 'Korean', label: '한국어' },
+    { value: 'Japanese', label: '日本語' },
+    { value: 'Spanish', label: 'Español' },
+    { value: 'French', label: 'Français' },
+    { value: 'German', label: 'Deutsch' },
+    { value: 'Chinese', label: '中文' },
+];
+
 export default function Settings({
     autoSendEnabled,
     onAutoSendChange,
@@ -30,7 +46,13 @@ export default function Settings({
     speechRate,
     onSpeechRateChange,
     speechPitch,
-    onSpeechPitchChange
+    onSpeechPitchChange,
+    targetLanguage,
+    onTargetLanguageChange,
+    nativeLanguage,
+    onNativeLanguageChange,
+    autoHideContent,
+    onAutoHideContentChange
 }: SettingsProps) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -77,6 +99,9 @@ export default function Settings({
                 </div>
 
                 <div className={styles.panelContent}>
+                    {/* Conversation Settings */}
+                    <h3 className={styles.categoryTitle}>Conversation</h3>
+
                     <div className={styles.settingItem}>
                         <div className={styles.settingInfo}>
                             <span className={styles.settingLabel}>Auto-send voice</span>
@@ -94,7 +119,72 @@ export default function Settings({
                         </button>
                     </div>
 
-                    <div className={styles.settingsDivider} />
+                    <div className={styles.settingItem}>
+                        <div className={styles.settingInfo}>
+                            <span className={styles.settingLabel}>Auto-hide answers</span>
+                            <span className={styles.settingDescription}>
+                                Hide chat content until tapped
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            className={`${styles.toggle} ${autoHideContent ? styles.toggleOn : ''}`}
+                            onClick={() => onAutoHideContentChange(!autoHideContent)}
+                            aria-label={autoHideContent ? "Disable auto-hide" : "Enable auto-hide"}
+                        >
+                            <span className={styles.toggleKnob} />
+                        </button>
+                    </div>
+
+                    {/* Language Settings */}
+                    <h3 className={styles.categoryTitle}>Language</h3>
+
+                    <div className={styles.settingItem}>
+                        <div className={styles.settingInfo}>
+                            <span className={styles.settingLabel}>Target Language</span>
+                            <span className={styles.settingDescription}>
+                                The language you want to learn
+                            </span>
+                        </div>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                className={styles.select}
+                                value={targetLanguage}
+                                onChange={(e) => onTargetLanguageChange(e.target.value)}
+                            >
+                                {LANGUAGE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className={styles.settingItem}>
+                        <div className={styles.settingInfo}>
+                            <span className={styles.settingLabel}>Native Language</span>
+                            <span className={styles.settingDescription}>
+                                Your native language for comments
+                            </span>
+                        </div>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                className={styles.select}
+                                value={nativeLanguage}
+                                onChange={(e) => onNativeLanguageChange(e.target.value)}
+                            >
+                                {LANGUAGE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Voice Settings */}
+                    <h3 className={styles.categoryTitle}>Voice</h3>
 
                     <div className={styles.settingItem}>
                         <div className={styles.settingInfo}>
@@ -118,8 +208,6 @@ export default function Settings({
                         </div>
                     </div>
 
-                    <div className={styles.settingsDivider} />
-
                     <div className={styles.settingItemVertical}>
                         <div className={styles.sliderWrapper}>
                             <div className={styles.sliderHeader}>
@@ -142,8 +230,6 @@ export default function Settings({
                             />
                         </div>
                     </div>
-
-                    <div className={styles.settingsDivider} />
 
                     <div className={styles.settingItemVertical}>
                         <div className={styles.sliderWrapper}>

@@ -57,7 +57,7 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: 320px;
+    width: 400px;
     max-width: 90vw;
     background: rgba(15, 16, 22, 0.95);
     backdrop-filter: blur(20px);
@@ -114,6 +114,22 @@
     flex: 1;
     padding: 1.5rem;
     overflow-y: auto;
+}
+
+/* Category title for grouping settings */
+.categoryTitle {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.categoryTitle:not(:first-child) {
+    margin-top: 1.5rem;
 }
 
 /* Setting item */

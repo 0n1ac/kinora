@@ -47,6 +47,15 @@
     display: none;
 }
 
+.titleClickable {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.titleClickable:hover {
+    opacity: 0.8;
+    transform: scale(0.98);
+}
+
 .title {
     font-size: 5rem;
     line-height: 1.1;
@@ -92,6 +101,34 @@
     width: calc(100% - 4rem);
     max-width: 900px;
     z-index: 50;
+}
+
+.inputRecording .textArea {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow:
+        0 0 10px rgba(99, 102, 241, 0.2),
+        0 0 20px rgba(99, 102, 241, 0.15),
+        0 0 30px rgba(99, 102, 241, 0.1);
+    animation: inputGlow 2s ease-in-out infinite;
+}
+
+@keyframes inputGlow {
+
+    0%,
+    100% {
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow:
+            0 0 10px rgba(99, 102, 241, 0.2),
+            0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    50% {
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow:
+            0 0 15px rgba(99, 102, 241, 0.3),
+            0 0 25px rgba(99, 102, 241, 0.2),
+            0 0 35px rgba(99, 102, 241, 0.15);
+    }
 }
 
 .textArea {

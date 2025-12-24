@@ -7,6 +7,7 @@ interface VoiceInputProps {
     onTranscript?: (transcript: string) => void;
     onAutoSend?: (transcript: string) => void;
     autoSendEnabled?: boolean;
+    onRecordingChange?: (isRecording: boolean) => void;
 }
 
 // Type declarations for Web Speech API
@@ -38,36 +39,83 @@ declare global {
     }
 }
 
-export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled = true }: VoiceInputProps) {
+export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled = true, onRecordingChange }: VoiceInputProps) {
     const [isRecording, setIsRecording] = useState(false);
     const [isSupported, setIsSupported] = useState(true);
+    const [silenceProgress, setSilenceProgress] = useState(0);
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const accumulatedTranscriptRef = useRef<string>('');
     const shouldAutoSendRef = useRef<boolean>(false);
+    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Use refs for callbacks to avoid re-creating the recognition on every render
     const onTranscriptRef = useRef(onTranscript);
     const onAutoSendRef = useRef(onAutoSend);
+    const onRecordingChangeRef = useRef(onRecordingChange);
 
     // Silence detection timer
     const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const autoSendEnabledRef = useRef(autoSendEnabled);
     const SILENCE_TIMEOUT = 1500; // 1.5 seconds of silence triggers auto-send
+    const PROGRESS_INTERVAL = 50; // Update progress every 50ms for smooth animation
 
     // Keep refs up to date
     useEffect(() => {
         onTranscriptRef.current = onTranscript;
         onAutoSendRef.current = onAutoSend;
+        onRecordingChangeRef.current = onRecordingChange;
         autoSendEnabledRef.current = autoSendEnabled;
-    }, [onTranscript, onAutoSend, autoSendEnabled]);
+    }, [onTranscript, onAutoSend, onRecordingChange, autoSendEnabled]);
 
-    // Clear silence timer on unmount
+    // Notify parent when recording state changes
+    useEffect(() => {
+        if (onRecordingChangeRef.current) {
+            onRecordingChangeRef.current(isRecording);
+        }
+    }, [isRecording]);
+
+    // Clear silence timer and progress interval on unmount
     useEffect(() => {
         return () => {
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
             }
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+            }
         };
+    }, []);
+
+    // Helper function to start progress animation
+    const startProgressAnimation = useCallback(() => {
+        setSilenceProgress(0);
+        const startTime = Date.now();
+
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+        }
+
+        progressIntervalRef.current = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min((elapsed / SILENCE_TIMEOUT) * 100, 100);
+            setSilenceProgress(progress);
+
+            if (progress >= 100) {
+                if (progressIntervalRef.current) {
+                    clearInterval(progressIntervalRef.current);
+                    progressIntervalRef.current = null;
+                }
+            }
+        }, PROGRESS_INTERVAL);
+    }, [SILENCE_TIMEOUT]);
+
+    // Helper function to stop progress animation
+    const stopProgressAnimation = useCallback(() => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+        }
+        setSilenceProgress(0);
     }, []);
 
     useEffect(() => {
@@ -86,11 +134,16 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = '';
 
-            // Clear any existing silence timer when we get new results
+            // Clear any existing silence timer and progress when we get new results
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
             }
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+                progressIntervalRef.current = null;
+            }
+            setSilenceProgress(0);
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
@@ -108,7 +161,28 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                 // Only start silence detection timer if auto-send is enabled
                 // If no new speech for SILENCE_TIMEOUT, auto-stop and send
                 if (autoSendEnabledRef.current) {
+                    // Start progress animation
+                    const startTime = Date.now();
+                    setSilenceProgress(0);
+
+                    if (progressIntervalRef.current) {
+                        clearInterval(progressIntervalRef.current);
+                    }
+
+                    progressIntervalRef.current = setInterval(() => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min((elapsed / SILENCE_TIMEOUT) * 100, 100);
+                        setSilenceProgress(progress);
+                    }, PROGRESS_INTERVAL);
+
                     silenceTimerRef.current = setTimeout(() => {
+                        // Stop progress animation
+                        if (progressIntervalRef.current) {
+                            clearInterval(progressIntervalRef.current);
+                            progressIntervalRef.current = null;
+                        }
+                        setSilenceProgress(0);
+
                         if (recognitionRef.current && accumulatedTranscriptRef.current.trim()) {
                             const transcript = accumulatedTranscriptRef.current.trim();
                             recognitionRef.current.stop();
@@ -129,11 +203,16 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-            // Clear silence timer on error
+            // Clear silence timer and progress on error
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
             }
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+                progressIntervalRef.current = null;
+            }
+            setSilenceProgress(0);
             // Ignore 'aborted' errors as they're expected when stopping
             if (event.error === 'aborted') {
                 return;
@@ -144,11 +223,16 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         };
 
         recognition.onend = () => {
-            // Clear silence timer
+            // Clear silence timer and progress
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
             }
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+                progressIntervalRef.current = null;
+            }
+            setSilenceProgress(0);
             setIsRecording(false);
         };
 
@@ -157,6 +241,9 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         return () => {
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
+            }
+            if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
             }
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
@@ -197,22 +284,53 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         }
     }, [isSupported, isRecording, onAutoSend]);
 
+    // Calculate SVG circle properties for progress ring
+    const circleRadius = 26;
+    const circleCircumference = 2 * Math.PI * circleRadius;
+    const strokeDashoffset = circleCircumference - (silenceProgress / 100) * circleCircumference;
+
     return (
         <div className={styles.container}>
-            <button
-                type="button"
-                className={`${styles.button} ${isRecording ? styles.recording : ''}`}
-                onClick={toggleRecording}
-                aria-label={isRecording ? "Stop recording" : "Start recording"}
-                disabled={!isSupported}
-                title={!isSupported ? "Speech recognition not supported" : undefined}
-            >
-                {isRecording ? (
-                    <MicOff size={22} />
-                ) : (
-                    <Mic size={22} />
+            <div className={styles.buttonWrapper}>
+                {/* Progress ring SVG */}
+                {isRecording && autoSendEnabled && (
+                    <svg className={styles.progressRing} viewBox="0 0 60 60">
+                        <circle
+                            className={styles.progressRingBg}
+                            cx="30"
+                            cy="30"
+                            r={circleRadius}
+                            fill="none"
+                            strokeWidth="3"
+                        />
+                        <circle
+                            className={styles.progressRingFill}
+                            cx="30"
+                            cy="30"
+                            r={circleRadius}
+                            fill="none"
+                            strokeWidth="3"
+                            strokeDasharray={circleCircumference}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                        />
+                    </svg>
                 )}
-            </button>
+                <button
+                    type="button"
+                    className={`${styles.button} ${isRecording ? styles.recording : ''}`}
+                    onClick={toggleRecording}
+                    aria-label={isRecording ? "Stop recording" : "Start recording"}
+                    disabled={!isSupported}
+                    title={!isSupported ? "Speech recognition not supported" : undefined}
+                >
+                    {isRecording ? (
+                        <MicOff size={22} />
+                    ) : (
+                        <Mic size={22} />
+                    )}
+                </button>
+            </div>
             {!isSupported && (
                 <p className={styles.unsupported}>Speech not supported</p>
             )}

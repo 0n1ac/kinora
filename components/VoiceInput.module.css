@@ -5,6 +5,34 @@
     flex-shrink: 0;
 }
 
+.buttonWrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.progressRing {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    pointer-events: none;
+}
+
+.progressRingBg {
+    stroke: rgba(99, 102, 241, 0.2);
+}
+
+.progressRingFill {
+    stroke: url(#progressGradient);
+    stroke: var(--brand-primary);
+    filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.6));
+    transition: stroke-dashoffset 0.05s linear;
+}
+
 .button {
     width: 48px;
     height: 48px;
