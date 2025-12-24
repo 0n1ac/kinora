@@ -5,6 +5,7 @@ import styles from './VoiceInput.module.css';
 
 interface VoiceInputProps {
     onTranscript?: (transcript: string) => void;
+    onAutoSend?: (transcript: string) => void;
 }
 
 // Type declarations for Web Speech API
@@ -36,10 +37,11 @@ declare global {
     }
 }
 
-export default function VoiceInput({ onTranscript }: VoiceInputProps) {
+export default function VoiceInput({ onTranscript, onAutoSend }: VoiceInputProps) {
     const [isRecording, setIsRecording] = useState(false);
     const [isSupported, setIsSupported] = useState(true);
     const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const accumulatedTranscriptRef = useRef<string>('');
 
     useEffect(() => {
         // Check if Speech Recognition is supported
@@ -64,18 +66,27 @@ export default function VoiceInput({ onTranscript }: VoiceInputProps) {
                 }
             }
 
-            if (finalTranscript && onTranscript) {
-                onTranscript(finalTranscript);
+            if (finalTranscript) {
+                accumulatedTranscriptRef.current += (accumulatedTranscriptRef.current ? ' ' : '') + finalTranscript;
+                if (onTranscript) {
+                    onTranscript(finalTranscript);
+                }
             }
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             console.error('Speech recognition error:', event.error);
             setIsRecording(false);
+            accumulatedTranscriptRef.current = '';
         };
 
         recognition.onend = () => {
             setIsRecording(false);
+            // Auto-send when recording ends and there's a transcript
+            if (accumulatedTranscriptRef.current.trim() && onAutoSend) {
+                onAutoSend(accumulatedTranscriptRef.current.trim());
+            }
+            accumulatedTranscriptRef.current = '';
         };
 
         recognitionRef.current = recognition;
@@ -85,7 +96,7 @@ export default function VoiceInput({ onTranscript }: VoiceInputProps) {
                 recognitionRef.current.abort();
             }
         };
-    }, [onTranscript]);
+    }, [onTranscript, onAutoSend]);
 
     const toggleRecording = () => {
         if (!isSupported || !recognitionRef.current) {

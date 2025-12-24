@@ -14,6 +14,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasUserInteractedWithTTS, setHasUserInteractedWithTTS] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -23,6 +24,10 @@ export default function Home() {
 
   const handleTranscript = (transcript: string) => {
     setInput(prev => prev + (prev ? ' ' : '') + transcript);
+  };
+
+  const handleTTSInteraction = () => {
+    setHasUserInteractedWithTTS(true);
   };
 
   const sendMessage = async (content: string) => {
@@ -92,6 +97,9 @@ export default function Home() {
     sendMessage(input);
   };
 
+  // Find the first assistant message index
+  const firstAssistantIndex = messages.findIndex(m => m.role === 'assistant');
+
   return (
     <main className={styles.main}>
       <div className={`${styles.hero} ${messages.length > 0 ? styles.heroActive : ''}`}>
@@ -105,13 +113,26 @@ export default function Home() {
         {/* Conversation Display */}
         {messages.length > 0 && (
           <div className={styles.messagesContainer}>
-            {messages.map(message => (
-              <ChatMessage
-                key={message.id}
-                role={message.role}
-                content={message.content}
-              />
-            ))}
+            {messages.map((message, index) => {
+              const isLastAssistantMessage =
+                message.role === 'assistant' &&
+                index === messages.length - 1 &&
+                !isLoading;
+
+              const isFirstAssistant = index === firstAssistantIndex;
+
+              return (
+                <ChatMessage
+                  key={message.id}
+                  role={message.role}
+                  content={message.content}
+                  autoSpeak={isLastAssistantMessage}
+                  isFirstAssistantMessage={isFirstAssistant}
+                  hasUserInteracted={hasUserInteractedWithTTS}
+                  onUserInteraction={handleTTSInteraction}
+                />
+              );
+            })}
             {isLoading && (
               <div className={styles.typingIndicator}>
                 <span></span><span></span><span></span>
@@ -135,7 +156,7 @@ export default function Home() {
               }
             }}
           />
-          <VoiceInput onTranscript={handleTranscript} />
+          <VoiceInput onTranscript={handleTranscript} onAutoSend={sendMessage} />
         </form>
       </div>
     </main>

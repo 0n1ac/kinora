@@ -43,7 +43,9 @@
 
 .bubble {
     padding: 1rem 1.25rem;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .content {
@@ -54,10 +56,36 @@
     white-space: pre-wrap;
 }
 
+/* Speaker area - below text */
+.speakArea {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.25rem;
+}
+
+/* Hint button for first message */
+.hintBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.hintBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Regular speak button */
 .speakBtn {
-    position: absolute;
-    bottom: 0.5rem;
-    right: 0.5rem;
     background: none;
     border: none;
     color: var(--text-secondary);
@@ -68,16 +96,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-}
-
-.assistant .bubble:hover .speakBtn {
-    opacity: 1;
+    opacity: 0.6;
 }
 
 .speakBtn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
+    opacity: 1;
 }
 
 .spinning {
