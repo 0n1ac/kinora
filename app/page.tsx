@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import styles from './page.module.css';
 import VoiceInput from '@/components/VoiceInput';
 import ChatMessage from '@/components/ChatMessage';
+import Settings from '@/components/Settings';
 
 interface Message {
   id: string;
@@ -15,6 +16,10 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasUserInteractedWithTTS, setHasUserInteractedWithTTS] = useState(false);
+  const [autoSendEnabled, setAutoSendEnabled] = useState(true);
+  const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural');
+  const [speechRate, setSpeechRate] = useState(0);
+  const [speechPitch, setSpeechPitch] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -99,15 +104,27 @@ export default function Home() {
 
   // Find the first assistant message index
   const firstAssistantIndex = messages.findIndex(m => m.role === 'assistant');
+  const hasConversation = messages.length > 0;
 
   return (
     <main className={styles.main}>
-      <div className={`${styles.hero} ${messages.length > 0 ? styles.heroActive : ''}`}>
+      <div className={`${styles.hero} ${hasConversation ? styles.heroActive : ''}`}>
         <h1 className={styles.title}>Kinora</h1>
         <p className={styles.subtitle}>
           Master fluency with AI-driven conversations.
         </p>
       </div>
+
+      <Settings
+        autoSendEnabled={autoSendEnabled}
+        onAutoSendChange={setAutoSendEnabled}
+        selectedVoice={selectedVoice}
+        onVoiceChange={setSelectedVoice}
+        speechRate={speechRate}
+        onSpeechRateChange={setSpeechRate}
+        speechPitch={speechPitch}
+        onSpeechPitchChange={setSpeechPitch}
+      />
 
       <div className={styles.interactionArea}>
         {/* Conversation Display */}
@@ -130,6 +147,9 @@ export default function Home() {
                   isFirstAssistantMessage={isFirstAssistant}
                   hasUserInteracted={hasUserInteractedWithTTS}
                   onUserInteraction={handleTTSInteraction}
+                  selectedVoice={selectedVoice}
+                  speechRate={speechRate}
+                  speechPitch={speechPitch}
                 />
               );
             })}
@@ -142,7 +162,7 @@ export default function Home() {
           </div>
         )}
 
-        <form className={styles.inputWrapper} onSubmit={handleSubmit}>
+        <form className={`${styles.inputWrapper} ${hasConversation ? styles.inputActive : ''}`} onSubmit={handleSubmit}>
           <textarea
             className={styles.textArea}
             placeholder="Type your message or use voice..."
@@ -156,7 +176,11 @@ export default function Home() {
               }
             }}
           />
-          <VoiceInput onTranscript={handleTranscript} onAutoSend={sendMessage} />
+          <VoiceInput
+            onTranscript={handleTranscript}
+            onAutoSend={sendMessage}
+            autoSendEnabled={autoSendEnabled}
+          />
         </form>
       </div>
     </main>

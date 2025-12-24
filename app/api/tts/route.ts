@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
         const text = searchParams.get('text');
+        const voice = searchParams.get('voice') || 'en-US-JennyNeural';
+        const rate = parseInt(searchParams.get('rate') || '0', 10);
+        const pitch = parseInt(searchParams.get('pitch') || '0', 10);
 
         if (!text) {
             return new Response(
@@ -15,8 +18,15 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Use a natural-sounding American English voice (Jenny is friendly and clear)
-        const tts = new EdgeTTS(text, 'en-US-JennyNeural');
+        // Format rate and pitch for Edge TTS
+        const rateStr = rate >= 0 ? `+${rate}%` : `${rate}%`;
+        const pitchStr = pitch >= 0 ? `+${pitch}Hz` : `${pitch}Hz`;
+
+        // Use the selected voice with rate and pitch options
+        const tts = new EdgeTTS(text, voice, {
+            rate: rateStr,
+            pitch: pitchStr
+        });
         const result = await tts.synthesize();
 
         // Convert to buffer for response

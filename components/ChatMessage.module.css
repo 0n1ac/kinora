@@ -118,3 +118,30 @@
         transform: rotate(360deg);
     }
 }
+
+/* Comments Section - English learning feedback */
+.commentsSection {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.commentsHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--brand-primary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.commentsText {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    font-style: italic;
+}

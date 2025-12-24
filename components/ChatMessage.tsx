@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
-import { Volume2, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Volume2, Loader2, MessageCircle } from 'lucide-react';
 import styles from './ChatMessage.module.css';
 
 interface ChatMessageProps {
@@ -11,6 +11,30 @@ interface ChatMessageProps {
     hasUserInteracted?: boolean;
     onUserInteraction?: () => void;
     onSpeakComplete?: () => void;
+    selectedVoice?: string;
+    speechRate?: number;
+    speechPitch?: number;
+}
+
+interface ParsedResponse {
+    answer: string;
+    comments: string | null;
+}
+
+function parseAssistantContent(content: string): ParsedResponse {
+    try {
+        // Try to parse as JSON
+        const parsed = JSON.parse(content);
+        if (parsed.Answer) {
+            return {
+                answer: parsed.Answer,
+                comments: parsed.Comments || null
+            };
+        }
+    } catch {
+        // Not valid JSON, return as-is
+    }
+    return { answer: content, comments: null };
 }
 
 export default function ChatMessage({
@@ -20,15 +44,28 @@ export default function ChatMessage({
     isFirstAssistantMessage = false,
     hasUserInteracted = false,
     onUserInteraction,
-    onSpeakComplete
+    onSpeakComplete,
+    selectedVoice = 'en-US-JennyNeural',
+    speechRate = 0,
+    speechPitch = 0
 }: ChatMessageProps) {
+    // Parse content for assistant messages
+    const parsedContent = useMemo(() => {
+        if (role === 'assistant') {
+            return parseAssistantContent(content);
+        }
+        return { answer: content, comments: null };
+    }, [content, role]);
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
     const [showHint, setShowHint] = useState(isFirstAssistantMessage && !hasUserInteracted);
     const hasAutoSpoken = useRef(false);
-    const lastContentLength = useRef(0);
+    const isSpeakingRef = useRef(false); // Ref to prevent race conditions
 
-    const handleSpeak = async () => {
+    const handleSpeak = useCallback(async () => {
+        // Prevent multiple simultaneous speak calls (race condition guard)
+        if (isSpeakingRef.current) return;
+
         // Mark that user has interacted
         if (onUserInteraction) {
             onUserInteraction();
@@ -42,16 +79,26 @@ export default function ChatMessage({
             audioElement.pause();
             audioElement.currentTime = 0;
             setIsPlaying(false);
+            isSpeakingRef.current = false;
             return;
         }
 
-        if (!content.trim()) return;
+        const textToSpeak = parsedContent.answer;
+        if (!textToSpeak.trim()) return;
 
+        // Set speaking flag immediately to prevent race conditions
+        isSpeakingRef.current = true;
         setIsPlaying(true);
 
         try {
-            // Fetch audio from Edge TTS API
-            const response = await fetch(`/api/tts?text=${encodeURIComponent(content)}`);
+            // Fetch audio from Edge TTS API with selected voice, rate and pitch
+            const params = new URLSearchParams({
+                text: textToSpeak,
+                voice: selectedVoice,
+                rate: speechRate.toString(),
+                pitch: speechPitch.toString()
+            });
+            const response = await fetch(`/api/tts?${params.toString()}`);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch TTS audio');
@@ -65,12 +112,14 @@ export default function ChatMessage({
 
             audio.onended = () => {
                 setIsPlaying(false);
+                isSpeakingRef.current = false;
                 URL.revokeObjectURL(audioUrl);
                 onSpeakComplete?.();
             };
 
             audio.onerror = () => {
                 setIsPlaying(false);
+                isSpeakingRef.current = false;
                 URL.revokeObjectURL(audioUrl);
             };
 
@@ -81,22 +130,25 @@ export default function ChatMessage({
             // Fallback to Web Speech API
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(content);
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = 'en-US';
                 utterance.rate = 0.9;
                 utterance.onend = () => {
                     setIsPlaying(false);
+                    isSpeakingRef.current = false;
                     onSpeakComplete?.();
                 };
                 utterance.onerror = () => {
                     setIsPlaying(false);
+                    isSpeakingRef.current = false;
                 };
                 window.speechSynthesis.speak(utterance);
             } else {
                 setIsPlaying(false);
+                isSpeakingRef.current = false;
             }
         }
-    };
+    }, [parsedContent.answer, isPlaying, audioElement, onUserInteraction, onSpeakComplete, selectedVoice, speechRate, speechPitch]);
 
     // Auto-speak only if user has already interacted (not first message)
     useEffect(() => {
@@ -110,21 +162,31 @@ export default function ChatMessage({
 
         // Use a timeout to detect when streaming has stopped
         const timeoutId = setTimeout(() => {
+            // Check hasAutoSpoken again and set it BEFORE calling handleSpeak
             if (content.length === contentLength && contentLength > 0 && !hasAutoSpoken.current) {
-                hasAutoSpoken.current = true;
+                hasAutoSpoken.current = true; // Set before calling to prevent race conditions
                 handleSpeak();
             }
         }, 500);
 
-        lastContentLength.current = contentLength;
-
         return () => clearTimeout(timeoutId);
-    }, [content, role, autoSpeak, hasUserInteracted]);
+    }, [content, role, autoSpeak, hasUserInteracted, handleSpeak]);
 
     return (
         <div className={`${styles.message} ${styles[role]}`}>
             <div className={styles.bubble}>
-                <p className={styles.content}>{content}</p>
+                <p className={styles.content}>
+                    {role === 'assistant' ? parsedContent.answer : content}
+                </p>
+                {role === 'assistant' && parsedContent.comments && (
+                    <div className={styles.commentsSection}>
+                        <div className={styles.commentsHeader}>
+                            <MessageCircle size={14} />
+                            <span>English Tips</span>
+                        </div>
+                        <p className={styles.commentsText}>{parsedContent.comments}</p>
+                    </div>
+                )}
                 {role === 'assistant' && (
                     <div className={styles.speakArea}>
                         {showHint && (
