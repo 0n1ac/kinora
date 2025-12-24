@@ -94,7 +94,7 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <div className={styles.hero}>
+      <div className={`${styles.hero} ${messages.length > 0 ? styles.heroActive : ''}`}>
         <h1 className={styles.title}>Kinora</h1>
         <p className={styles.subtitle}>
           Master fluency with AI-driven conversations.
