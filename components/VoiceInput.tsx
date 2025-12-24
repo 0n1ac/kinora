@@ -116,9 +116,9 @@ export default function VoiceInput({ onTranscript }: VoiceInputProps) {
                 title={!isSupported ? "Speech recognition not supported" : undefined}
             >
                 {isRecording ? (
-                    <MicOff size={28} />
+                    <MicOff size={22} />
                 ) : (
-                    <Mic size={28} />
+                    <Mic size={22} />
                 )}
             </button>
             {!isSupported && (

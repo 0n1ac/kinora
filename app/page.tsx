@@ -121,12 +121,10 @@ export default function Home() {
           </div>
         )}
 
-        <VoiceInput onTranscript={handleTranscript} />
-
         <form className={styles.inputWrapper} onSubmit={handleSubmit}>
           <textarea
             className={styles.textArea}
-            placeholder="Type your message or speak above..."
+            placeholder="Type your message or use voice..."
             spellCheck={false}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -137,6 +135,7 @@ export default function Home() {
               }
             }}
           />
+          <VoiceInput onTranscript={handleTranscript} />
         </form>
       </div>
     </main>
