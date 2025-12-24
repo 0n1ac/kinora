@@ -1,0 +1,68 @@
+:root {
+  /* Premium Dark Theme Palette */
+  --bg-primary: #05050A;
+  /* Deepest black/blue */
+  --bg-secondary: #0F1016;
+  /* Surface */
+
+  --text-primary: #EDEDF0;
+  /* Main text */
+  --text-secondary: #8F9099;
+  /* Muted text */
+
+  --brand-primary: #6366F1;
+  /* Indigo/Violet */
+  --brand-glow: rgba(99, 102, 241, 0.15);
+
+  --accent-gold: #fbbf24;
+  /* For 'Ora' highlights */
+
+  /* Spacing & Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+
+  --container-max: 1200px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-inter), sans-serif;
+  /* Default to Inter */
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-outfit), sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+
+/* Utilities */
+.glass-panel {
+  background: rgba(15, 16, 22, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #fff 0%, #a5a6f6 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
