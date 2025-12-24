@@ -1,0 +1,81 @@
+.message {
+    display: flex;
+    width: 100%;
+    margin-bottom: 1rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* User messages - right aligned */
+.user {
+    justify-content: flex-end;
+}
+
+.user .bubble {
+    background: var(--brand-primary);
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+    max-width: 80%;
+}
+
+/* Assistant messages - left aligned */
+.assistant {
+    justify-content: flex-start;
+}
+
+.assistant .bubble {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+    max-width: 85%;
+}
+
+.bubble {
+    padding: 1rem 1.25rem;
+    position: relative;
+}
+
+.content {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
+.speakBtn {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+}
+
+.assistant .bubble:hover .speakBtn {
+    opacity: 1;
+}
+
+.speakBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}

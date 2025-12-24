@@ -57,3 +57,10 @@
         box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
     }
 }
+
+.unsupported {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
