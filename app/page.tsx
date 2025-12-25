@@ -25,6 +25,7 @@ export default function Home() {
   const [autoHideContent, setAutoHideContent] = useState(true);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [sttMode, setSttMode] = useState<SttMode>('web-speech');
+  const [whisperModel, setWhisperModel] = useState('small');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -154,6 +155,8 @@ export default function Home() {
         onAutoHideContentChange={setAutoHideContent}
         sttMode={sttMode}
         onSttModeChange={(mode) => setSttMode(mode as SttMode)}
+        whisperModel={whisperModel}
+        onWhisperModelChange={setWhisperModel}
       />
 
       <div className={styles.interactionArea}>
@@ -213,6 +216,7 @@ export default function Home() {
             autoSendEnabled={autoSendEnabled}
             onRecordingChange={setIsVoiceRecording}
             sttMode={sttMode}
+            whisperModel={whisperModel}
           />
         </form>
       </div>

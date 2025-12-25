@@ -11,6 +11,7 @@ interface VoiceInputProps {
     autoSendEnabled?: boolean;
     onRecordingChange?: (isRecording: boolean) => void;
     sttMode?: SttMode;
+    whisperModel?: string;
 }
 
 // Type declarations for Web Speech API
@@ -48,7 +49,8 @@ export default function VoiceInput({
     onAutoSend,
     autoSendEnabled = true,
     onRecordingChange,
-    sttMode = 'web-speech'
+    sttMode = 'web-speech',
+    whisperModel = 'small'
 }: VoiceInputProps) {
     const [isRecording, setIsRecording] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -279,6 +281,7 @@ export default function VoiceInput({
                 },
                 body: JSON.stringify({
                     audio: Array.from(audioData), // Convert to regular array for JSON
+                    model: whisperModel, // Pass selected model
                 }),
             });
 

@@ -5,25 +5,32 @@ import path from 'path';
 // Project-local models folder for easy cleanup
 const MODELS_DIR = path.join(process.cwd(), 'models');
 
-// Cache the pipeline to avoid reloading the model on every request
+// Cache pipelines for each model to avoid reloading
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let transcriber: any = null;
+const transcriberCache: Record<string, any> = {};
 
-async function getTranscriber() {
-    if (!transcriber) {
-        console.log('[Whisper] Loading model... (this may take a moment on first use)');
+const MODEL_MAP: Record<string, string> = {
+    'tiny': 'onnx-community/whisper-tiny.en',
+    'small': 'onnx-community/whisper-small.en',
+};
+
+async function getTranscriber(modelSize: string = 'small') {
+    const modelId = MODEL_MAP[modelSize] || MODEL_MAP['small'];
+
+    if (!transcriberCache[modelId]) {
+        console.log(`[Whisper] Loading model: ${modelSize}... (this may take a moment on first use)`);
         console.log(`[Whisper] Models will be stored in: ${MODELS_DIR}`);
-        transcriber = await pipeline(
+        transcriberCache[modelId] = await pipeline(
             'automatic-speech-recognition',
-            'onnx-community/whisper-small.en', // Small model for good balance of accuracy and speed
+            modelId,
             {
                 dtype: 'fp32',
-                cache_dir: MODELS_DIR, // Store models in project folder
+                cache_dir: MODELS_DIR,
             }
         );
-        console.log('[Whisper] Model loaded successfully');
+        console.log(`[Whisper] Model ${modelSize} loaded successfully`);
     }
-    return transcriber;
+    return transcriberCache[modelId];
 }
 
 export async function POST(request: NextRequest) {
@@ -31,6 +38,7 @@ export async function POST(request: NextRequest) {
         // Parse JSON body with audio data
         const body = await request.json();
         const audioArray = body.audio;
+        const modelSize = body.model || 'small';
 
         if (!audioArray || !Array.isArray(audioArray)) {
             return NextResponse.json(
@@ -42,8 +50,8 @@ export async function POST(request: NextRequest) {
         // Convert array back to Float32Array
         const audioData = new Float32Array(audioArray);
 
-        // Get or initialize the transcriber
-        const asr = await getTranscriber();
+        // Get or initialize the transcriber for the selected model
+        const asr = await getTranscriber(modelSize);
 
         // Transcribe the audio (already in Float32Array format at 16kHz)
         const result = await asr(audioData);

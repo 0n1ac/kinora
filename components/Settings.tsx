@@ -20,6 +20,8 @@ interface SettingsProps {
     onAutoHideContentChange: (enabled: boolean) => void;
     sttMode: string;
     onSttModeChange: (mode: string) => void;
+    whisperModel: string;
+    onWhisperModelChange: (model: string) => void;
 }
 
 const VOICE_OPTIONS = [
@@ -45,6 +47,11 @@ const STT_OPTIONS = [
     { value: 'whisper', label: 'Whisper (Accurate)' },
 ];
 
+const WHISPER_MODEL_OPTIONS = [
+    { value: 'tiny', label: 'Tiny (~40MB, Faster)' },
+    { value: 'small', label: 'Small (~242MB, Accurate)' },
+];
+
 export default function Settings({
     autoSendEnabled,
     onAutoSendChange,
@@ -61,7 +68,9 @@ export default function Settings({
     autoHideContent,
     onAutoHideContentChange,
     sttMode,
-    onSttModeChange
+    onSttModeChange,
+    whisperModel,
+    onWhisperModelChange
 }: SettingsProps) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -238,6 +247,30 @@ export default function Settings({
                             </select>
                         </div>
                     </div>
+
+                    {sttMode === 'whisper' && (
+                        <div className={styles.settingItem}>
+                            <div className={styles.settingInfo}>
+                                <span className={styles.settingLabel}>Whisper Model</span>
+                                <span className={styles.settingDescription}>
+                                    Smaller = faster, Larger = more accurate
+                                </span>
+                            </div>
+                            <div className={styles.selectWrapper}>
+                                <select
+                                    className={styles.select}
+                                    value={whisperModel}
+                                    onChange={(e) => onWhisperModelChange(e.target.value)}
+                                >
+                                    {WHISPER_MODEL_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     <div className={styles.settingItemVertical}>
                         <div className={styles.sliderWrapper}>
