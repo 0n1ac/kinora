@@ -1,44 +1,205 @@
 "use client";
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import styles from './page.module.css';
 import VoiceInput, { SttMode } from '@/components/VoiceInput';
 import ChatMessage from '@/components/ChatMessage';
 import Settings from '@/components/Settings';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
+import ChatHistory from '@/components/ChatHistory';
+import {
+  KinoraSettings,
+  Persona,
+  Conversation,
+  Message,
+  DEFAULT_SETTINGS,
+  DEFAULT_PERSONA,
+  saveSettings,
+  loadSettings,
+  savePersona,
+  loadPersona,
+  getConversationList,
+  saveConversation,
+  loadConversation,
+  deleteConversation,
+  createConversation,
+  generateConversationTitle,
+  getCurrentConversationId,
+  setCurrentConversationId,
+} from '@/lib/storage';
 
 export default function Home() {
+  // Initialize with defaults, will be overwritten on mount
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasUserInteractedWithTTS, setHasUserInteractedWithTTS] = useState(false);
-  const [autoSendEnabled, setAutoSendEnabled] = useState(true);
-  const [selectedVoice, setSelectedVoice] = useState('en-US-JennyNeural');
-  const [speechRate, setSpeechRate] = useState(0);
-  const [speechPitch, setSpeechPitch] = useState(0);
-  const [targetLanguage, setTargetLanguage] = useState('English');
-  const [nativeLanguage, setNativeLanguage] = useState('Korean');
-  const [autoHideContent, setAutoHideContent] = useState(true);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
-  const [sttMode, setSttMode] = useState<SttMode>('web-speech');
-  const [whisperModel, setWhisperModel] = useState('small');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Settings state
+  const [autoSendEnabled, setAutoSendEnabled] = useState(DEFAULT_SETTINGS.autoSendEnabled);
+  const [selectedVoice, setSelectedVoice] = useState(DEFAULT_SETTINGS.selectedVoice);
+  const [speechRate, setSpeechRate] = useState(DEFAULT_SETTINGS.speechRate);
+  const [speechPitch, setSpeechPitch] = useState(DEFAULT_SETTINGS.speechPitch);
+  const [targetLanguage, setTargetLanguage] = useState(DEFAULT_SETTINGS.targetLanguage);
+  const [nativeLanguage, setNativeLanguage] = useState(DEFAULT_SETTINGS.nativeLanguage);
+  const [autoHideContent, setAutoHideContent] = useState(DEFAULT_SETTINGS.autoHideContent);
+  const [sttMode, setSttMode] = useState<SttMode>(DEFAULT_SETTINGS.sttMode as SttMode);
+  const [whisperModel, setWhisperModel] = useState(DEFAULT_SETTINGS.whisperModel);
+
+  // Persona state
+  const [persona, setPersona] = useState<Persona>(DEFAULT_PERSONA);
+
+  // Conversation state
+  const [currentConversationId, setCurrentConversationIdState] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const settings = loadSettings();
+    setAutoSendEnabled(settings.autoSendEnabled);
+    setSelectedVoice(settings.selectedVoice);
+    setSpeechRate(settings.speechRate);
+    setSpeechPitch(settings.speechPitch);
+    setTargetLanguage(settings.targetLanguage);
+    setNativeLanguage(settings.nativeLanguage);
+    setAutoHideContent(settings.autoHideContent);
+    setSttMode(settings.sttMode as SttMode);
+    setWhisperModel(settings.whisperModel);
+
+    setPersona(loadPersona());
+    setConversations(getConversationList());
+
+    // Load current conversation
+    const currentId = getCurrentConversationId();
+    if (currentId) {
+      const conv = loadConversation(currentId);
+      if (conv) {
+        setCurrentConversationIdState(currentId);
+        setMessages(conv.messages);
+      }
+    }
+
+    setIsInitialized(true);
+  }, []);
+
+  // Save settings whenever they change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const settings: KinoraSettings = {
+      autoSendEnabled,
+      selectedVoice,
+      speechRate,
+      speechPitch,
+      targetLanguage,
+      nativeLanguage,
+      autoHideContent,
+      sttMode,
+      whisperModel,
+    };
+    saveSettings(settings);
+  }, [
+    isInitialized,
+    autoSendEnabled,
+    selectedVoice,
+    speechRate,
+    speechPitch,
+    targetLanguage,
+    nativeLanguage,
+    autoHideContent,
+    sttMode,
+    whisperModel,
+  ]);
+
+  // Save persona whenever it changes
+  useEffect(() => {
+    if (!isInitialized) return;
+    savePersona(persona);
+  }, [isInitialized, persona]);
+
+  // Save current conversation whenever messages change
+  const saveCurrentConversation = useCallback((msgs: Message[], convId: string | null) => {
+    if (!isInitialized || !convId) return;
+
+    const existingConv = loadConversation(convId);
+    const title = msgs.length > 0 ? generateConversationTitle(msgs) : 'New Conversation';
+
+    const conversation: Conversation = {
+      id: convId,
+      title,
+      messages: msgs,
+      createdAt: existingConv?.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    saveConversation(conversation);
+    setConversations(getConversationList());
+  }, [isInitialized]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Reset session - clear all messages and return to starting screen
-  const resetSession = () => {
+  // Start a new conversation
+  const startNewConversation = useCallback(() => {
+    const newConv = createConversation();
+    setCurrentConversationIdState(newConv.id);
+    setCurrentConversationId(newConv.id);
     setMessages([]);
     setInput("");
     setIsLoading(false);
     setHasUserInteractedWithTTS(false);
+    saveConversation(newConv);
+    setConversations(getConversationList());
+  }, []);
+
+  // Reset session - clear current and start new
+  const resetSession = () => {
+    startNewConversation();
+  };
+
+  // Switch to a different conversation
+  const handleSelectConversation = (id: string) => {
+    const conv = loadConversation(id);
+    if (conv) {
+      setCurrentConversationIdState(id);
+      setCurrentConversationId(id);
+      setMessages(conv.messages);
+      setInput("");
+      setIsLoading(false);
+    }
+  };
+
+  // Delete a conversation
+  const handleDeleteConversation = (id: string) => {
+    deleteConversation(id);
+    setConversations(getConversationList());
+
+    // If deleting current conversation, start a new one
+    if (id === currentConversationId) {
+      startNewConversation();
+    }
+  };
+
+  // Handle clear all data
+  const handleClearAllData = () => {
+    setMessages([]);
+    setInput("");
+    setPersona(DEFAULT_PERSONA);
+    setConversations([]);
+    setCurrentConversationIdState(null);
+    setAutoSendEnabled(DEFAULT_SETTINGS.autoSendEnabled);
+    setSelectedVoice(DEFAULT_SETTINGS.selectedVoice);
+    setSpeechRate(DEFAULT_SETTINGS.speechRate);
+    setSpeechPitch(DEFAULT_SETTINGS.speechPitch);
+    setTargetLanguage(DEFAULT_SETTINGS.targetLanguage);
+    setNativeLanguage(DEFAULT_SETTINGS.nativeLanguage);
+    setAutoHideContent(DEFAULT_SETTINGS.autoHideContent);
+    setSttMode(DEFAULT_SETTINGS.sttMode as SttMode);
+    setWhisperModel(DEFAULT_SETTINGS.whisperModel);
   };
 
   const handleTranscript = (transcript: string) => {
@@ -52,27 +213,42 @@ export default function Home() {
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
 
+    // Ensure we have a conversation
+    let convId = currentConversationId;
+    if (!convId) {
+      const newConv = createConversation();
+      convId = newConv.id;
+      setCurrentConversationIdState(convId);
+      setCurrentConversationId(convId);
+      saveConversation(newConv);
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: content.trim()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput("");
     setIsLoading(true);
+
+    // Save immediately after user message
+    saveCurrentConversation(newMessages, convId);
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map(m => ({
+          messages: newMessages.map(m => ({
             role: m.role,
             content: m.content
           })),
           targetLanguage,
-          nativeLanguage
+          nativeLanguage,
+          persona
         })
       });
 
@@ -99,15 +275,21 @@ export default function Home() {
           prev.map(m => m.id === assistantMessage.id ? { ...m, content: assistantMessage.content } : m)
         );
       }
+
+      // Save after assistant response
+      const finalMessages = [...newMessages, assistantMessage];
+      saveCurrentConversation(finalMessages, convId);
+
     } catch (error) {
       console.error('Chat error:', error);
-      // Fallback demo response when API is not available
       const demoResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Hello! I'm Kinora, your language learning companion. I'm here to help you practice conversations and improve your fluency. What would you like to talk about today?"
+        content: '{"Answer": "Hello! I\'m Kinora, your language learning companion. I\'m here to help you practice conversations and improve your fluency. What would you like to talk about today?", "Comments": "Let\'s start our conversation!"}'
       };
-      setMessages(prev => [...prev, demoResponse]);
+      const finalMessages = [...newMessages, demoResponse];
+      setMessages(finalMessages);
+      saveCurrentConversation(finalMessages, convId);
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +303,18 @@ export default function Home() {
   // Find the first assistant message index
   const firstAssistantIndex = messages.findIndex(m => m.role === 'assistant');
   const hasConversation = messages.length > 0;
+
+  // Don't render until initialized to avoid hydration mismatch
+  if (!isInitialized) {
+    return (
+      <main className={styles.main}>
+        <div className={styles.hero}>
+          <h1 className={styles.title}>Kinora</h1>
+          <p className={styles.subtitle}>Master fluency with AI-driven conversations.</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={styles.main}>
@@ -137,6 +331,14 @@ export default function Home() {
           Master fluency with AI-driven conversations.
         </p>
       </div>
+
+      <ChatHistory
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onNewChat={startNewConversation}
+        onSelectConversation={handleSelectConversation}
+        onDeleteConversation={handleDeleteConversation}
+      />
 
       <Settings
         autoSendEnabled={autoSendEnabled}
@@ -157,6 +359,9 @@ export default function Home() {
         onSttModeChange={(mode) => setSttMode(mode as SttMode)}
         whisperModel={whisperModel}
         onWhisperModelChange={setWhisperModel}
+        persona={persona}
+        onPersonaChange={setPersona}
+        onClearAllData={handleClearAllData}
       />
 
       <div className={styles.interactionArea}>

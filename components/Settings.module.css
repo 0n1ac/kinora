@@ -340,3 +340,105 @@
     border-radius: var(--radius-md);
     border: 1px solid rgba(255, 255, 255, 0.04);
 }
+
+/* Storage Indicator */
+.storageSection {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.storageInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.storageLabel {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.storageValue {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.storageBarContainer {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.storageBar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--brand-primary), #818cf8);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.storageBarWarning {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.storageBarDanger {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.clearDataButton {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-md);
+    color: #ef4444;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clearDataButton:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.clearConfirm {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.clearConfirm button {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clearConfirmYes {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.clearConfirmYes:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.clearConfirmNo {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.clearConfirmNo:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}

@@ -1,6 +1,8 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, X } from 'lucide-react';
+import { Persona, getStorageUsage, formatBytes, clearAllData } from '@/lib/storage';
+import PersonaEditor from './PersonaEditor';
 import styles from './Settings.module.css';
 
 interface SettingsProps {
@@ -22,6 +24,9 @@ interface SettingsProps {
     onSttModeChange: (mode: string) => void;
     whisperModel: string;
     onWhisperModelChange: (model: string) => void;
+    persona: Persona;
+    onPersonaChange: (persona: Persona) => void;
+    onClearAllData: () => void;
 }
 
 const VOICE_OPTIONS = [
@@ -70,9 +75,21 @@ export default function Settings({
     sttMode,
     onSttModeChange,
     whisperModel,
-    onWhisperModelChange
+    onWhisperModelChange,
+    persona,
+    onPersonaChange,
+    onClearAllData
 }: SettingsProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [storageUsage, setStorageUsage] = useState({ used: 0, quota: 5 * 1024 * 1024, percentage: 0 });
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+    // Update storage usage when panel opens
+    useEffect(() => {
+        if (isOpen) {
+            setStorageUsage(getStorageUsage());
+        }
+    }, [isOpen]);
 
     const formatRate = (rate: number) => {
         if (rate === 0) return 'Normal';
@@ -82,6 +99,19 @@ export default function Settings({
     const formatPitch = (pitch: number) => {
         if (pitch === 0) return 'Normal';
         return pitch > 0 ? `+${pitch}Hz` : `${pitch}Hz`;
+    };
+
+    const handleClearData = () => {
+        clearAllData();
+        onClearAllData();
+        setStorageUsage(getStorageUsage());
+        setShowClearConfirm(false);
+    };
+
+    const getStorageBarClass = () => {
+        if (storageUsage.percentage > 80) return `${styles.storageBar} ${styles.storageBarDanger}`;
+        if (storageUsage.percentage > 50) return `${styles.storageBar} ${styles.storageBarWarning}`;
+        return styles.storageBar;
     };
 
     return (
@@ -117,6 +147,12 @@ export default function Settings({
                 </div>
 
                 <div className={styles.panelContent}>
+                    {/* Persona Section */}
+                    <PersonaEditor
+                        persona={persona}
+                        onPersonaChange={onPersonaChange}
+                    />
+
                     {/* Conversation Settings */}
                     <h3 className={styles.categoryTitle}>Conversation</h3>
 
@@ -316,6 +352,49 @@ export default function Settings({
                                 onChange={(e) => onSpeechPitchChange(Number(e.target.value))}
                             />
                         </div>
+                    </div>
+
+                    {/* Storage Section */}
+                    <div className={styles.storageSection}>
+                        <h3 className={styles.categoryTitle}>Storage</h3>
+                        <div className={styles.storageInfo}>
+                            <span className={styles.storageLabel}>Local Storage Used</span>
+                            <span className={styles.storageValue}>
+                                {formatBytes(storageUsage.used)} / {formatBytes(storageUsage.quota)}
+                            </span>
+                        </div>
+                        <div className={styles.storageBarContainer}>
+                            <div
+                                className={getStorageBarClass()}
+                                style={{ width: `${Math.min(storageUsage.percentage, 100)}%` }}
+                            />
+                        </div>
+                        {showClearConfirm ? (
+                            <div className={styles.clearConfirm}>
+                                <button
+                                    className={styles.clearConfirmYes}
+                                    onClick={handleClearData}
+                                    type="button"
+                                >
+                                    Yes, Clear All
+                                </button>
+                                <button
+                                    className={styles.clearConfirmNo}
+                                    onClick={() => setShowClearConfirm(false)}
+                                    type="button"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                className={styles.clearDataButton}
+                                onClick={() => setShowClearConfirm(true)}
+                                type="button"
+                            >
+                                Clear All Data
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
