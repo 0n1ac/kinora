@@ -1,6 +1,6 @@
 "use client";
 import { useState } from 'react';
-import { MessageSquare, Plus, X, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, X, Trash2, Pencil, Check } from 'lucide-react';
 import { Conversation } from '@/lib/storage';
 import styles from './ChatHistory.module.css';
 
@@ -10,6 +10,7 @@ interface ChatHistoryProps {
     onNewChat: () => void;
     onSelectConversation: (id: string) => void;
     onDeleteConversation: (id: string) => void;
+    onRenameConversation: (id: string, newTitle: string) => void;
 }
 
 export default function ChatHistory({
@@ -18,11 +19,15 @@ export default function ChatHistory({
     onNewChat,
     onSelectConversation,
     onDeleteConversation,
+    onRenameConversation,
 }: ChatHistoryProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
 
     const handleSelectConversation = (id: string) => {
+        if (editingId === id) return; // Don't select while editing
         onSelectConversation(id);
         setIsOpen(false);
     };
@@ -46,6 +51,42 @@ export default function ChatHistory({
     const handleDeleteCancel = (e: React.MouseEvent) => {
         e.stopPropagation();
         setDeleteConfirmId(null);
+    };
+
+    const handleEditClick = (e: React.MouseEvent, conversation: Conversation) => {
+        e.stopPropagation();
+        setEditingId(conversation.id);
+        setEditingTitle(conversation.title);
+        setDeleteConfirmId(null);
+    };
+
+    const handleEditSave = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (editingTitle.trim()) {
+            onRenameConversation(id, editingTitle.trim());
+        }
+        setEditingId(null);
+        setEditingTitle('');
+    };
+
+    const handleEditCancel = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingId(null);
+        setEditingTitle('');
+    };
+
+    const handleEditKeyDown = (e: React.KeyboardEvent, id: string) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (editingTitle.trim()) {
+                onRenameConversation(id, editingTitle.trim());
+            }
+            setEditingId(null);
+            setEditingTitle('');
+        } else if (e.key === 'Escape') {
+            setEditingId(null);
+            setEditingTitle('');
+        }
     };
 
     const formatDate = (timestamp: number): string => {
@@ -129,15 +170,44 @@ export default function ChatHistory({
                                     onClick={() => handleSelectConversation(conversation.id)}
                                 >
                                     <div className={styles.conversationContent}>
-                                        <div className={styles.conversationTitle}>
-                                            {conversation.title}
-                                        </div>
+                                        {editingId === conversation.id ? (
+                                            <input
+                                                type="text"
+                                                className={styles.editInput}
+                                                value={editingTitle}
+                                                onChange={(e) => setEditingTitle(e.target.value)}
+                                                onKeyDown={(e) => handleEditKeyDown(e, conversation.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                autoFocus
+                                            />
+                                        ) : (
+                                            <div className={styles.conversationTitle}>
+                                                {conversation.title}
+                                            </div>
+                                        )}
                                         <div className={styles.conversationDate}>
                                             {formatDate(conversation.updatedAt)}
                                         </div>
                                     </div>
 
-                                    {deleteConfirmId === conversation.id ? (
+                                    {editingId === conversation.id ? (
+                                        <div className={styles.editActions}>
+                                            <button
+                                                className={styles.editSaveButton}
+                                                onClick={(e) => handleEditSave(e, conversation.id)}
+                                                aria-label="Save"
+                                            >
+                                                <Check size={14} />
+                                            </button>
+                                            <button
+                                                className={styles.editCancelButton}
+                                                onClick={handleEditCancel}
+                                                aria-label="Cancel"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ) : deleteConfirmId === conversation.id ? (
                                         <div className={styles.deleteConfirm}>
                                             <button
                                                 className={`${styles.confirmButton} ${styles.confirmYes}`}
@@ -153,13 +223,22 @@ export default function ChatHistory({
                                             </button>
                                         </div>
                                     ) : (
-                                        <button
-                                            className={styles.deleteButton}
-                                            onClick={(e) => handleDeleteClick(e, conversation.id)}
-                                            aria-label="Delete conversation"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                        <div className={styles.actionButtons}>
+                                            <button
+                                                className={styles.editButton}
+                                                onClick={(e) => handleEditClick(e, conversation)}
+                                                aria-label="Rename conversation"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button
+                                                className={styles.deleteButton}
+                                                onClick={(e) => handleDeleteClick(e, conversation.id)}
+                                                aria-label="Delete conversation"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             ))

@@ -53,8 +53,10 @@ const STT_OPTIONS = [
 ];
 
 const WHISPER_MODEL_OPTIONS = [
-    { value: 'tiny', label: 'Tiny (~40MB, Faster)' },
-    { value: 'small', label: 'Small (~242MB, Accurate)' },
+    { value: 'tiny', label: 'Tiny (~40MB, Fastest)' },
+    { value: 'base', label: 'Base (~74MB, Fast)' },
+    { value: 'small', label: 'Small (~242MB, Balanced)' },
+    { value: 'medium', label: 'Medium (~764MB, Accurate)' },
 ];
 
 export default function Settings({

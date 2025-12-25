@@ -20,6 +20,7 @@ import {
   saveConversation,
   loadConversation,
   deleteConversation,
+  renameConversation,
   createConversation,
   generateConversationTitle,
   getCurrentConversationId,
@@ -184,6 +185,12 @@ export default function Home() {
     }
   };
 
+  // Rename a conversation
+  const handleRenameConversation = (id: string, newTitle: string) => {
+    renameConversation(id, newTitle);
+    setConversations(getConversationList());
+  };
+
   // Handle clear all data
   const handleClearAllData = () => {
     setMessages([]);
@@ -338,6 +345,7 @@ export default function Home() {
         onNewChat={startNewConversation}
         onSelectConversation={handleSelectConversation}
         onDeleteConversation={handleDeleteConversation}
+        onRenameConversation={handleRenameConversation}
       />
 
       <Settings

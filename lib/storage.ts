@@ -152,6 +152,17 @@ export const deleteConversation = (id: string): void => {
     }
 };
 
+export const renameConversation = (id: string, newTitle: string): void => {
+    if (!isLocalStorageAvailable()) return;
+    const conversations = getConversationList();
+    const index = conversations.findIndex(c => c.id === id);
+    if (index >= 0) {
+        conversations[index].title = newTitle;
+        conversations[index].updatedAt = Date.now();
+        localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+    }
+};
+
 export const getCurrentConversationId = (): string | null => {
     if (!isLocalStorageAvailable()) return null;
     return localStorage.getItem(STORAGE_KEYS.CURRENT_CONVERSATION);
