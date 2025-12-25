@@ -24,6 +24,7 @@ interface SpeechRecognition extends EventTarget {
     continuous: boolean;
     interimResults: boolean;
     lang: string;
+    maxAlternatives: number;
     start(): void;
     stop(): void;
     abort(): void;
@@ -130,6 +131,7 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         recognition.continuous = true; // Keep listening
         recognition.interimResults = true;
         recognition.lang = 'en-US'; // Default to English
+        recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = '';
