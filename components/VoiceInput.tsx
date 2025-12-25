@@ -1,13 +1,16 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, Loader2 } from 'lucide-react';
 import styles from './VoiceInput.module.css';
+
+export type SttMode = 'web-speech' | 'whisper';
 
 interface VoiceInputProps {
     onTranscript?: (transcript: string) => void;
     onAutoSend?: (transcript: string) => void;
     autoSendEnabled?: boolean;
     onRecordingChange?: (isRecording: boolean) => void;
+    sttMode?: SttMode;
 }
 
 // Type declarations for Web Speech API
@@ -40,14 +43,28 @@ declare global {
     }
 }
 
-export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled = true, onRecordingChange }: VoiceInputProps) {
+export default function VoiceInput({
+    onTranscript,
+    onAutoSend,
+    autoSendEnabled = true,
+    onRecordingChange,
+    sttMode = 'web-speech'
+}: VoiceInputProps) {
     const [isRecording, setIsRecording] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [isSupported, setIsSupported] = useState(true);
     const [silenceProgress, setSilenceProgress] = useState(0);
+
+    // Web Speech API refs
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const accumulatedTranscriptRef = useRef<string>('');
     const shouldAutoSendRef = useRef<boolean>(false);
     const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Whisper/MediaRecorder refs
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const streamRef = useRef<MediaStream | null>(null);
 
     // Use refs for callbacks to avoid re-creating the recognition on every render
     const onTranscriptRef = useRef(onTranscript);
@@ -57,6 +74,7 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
     // Silence detection timer
     const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const autoSendEnabledRef = useRef(autoSendEnabled);
+    const sttModeRef = useRef(sttMode);
     const SILENCE_TIMEOUT = 1500; // 1.5 seconds of silence triggers auto-send
     const PROGRESS_INTERVAL = 50; // Update progress every 50ms for smooth animation
 
@@ -66,7 +84,8 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         onAutoSendRef.current = onAutoSend;
         onRecordingChangeRef.current = onRecordingChange;
         autoSendEnabledRef.current = autoSendEnabled;
-    }, [onTranscript, onAutoSend, onRecordingChange, autoSendEnabled]);
+        sttModeRef.current = sttMode;
+    }, [onTranscript, onAutoSend, onRecordingChange, autoSendEnabled, sttMode]);
 
     // Notify parent when recording state changes
     useEffect(() => {
@@ -75,7 +94,7 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         }
     }, [isRecording]);
 
-    // Clear silence timer and progress interval on unmount
+    // Clear timers on unmount
     useEffect(() => {
         return () => {
             if (silenceTimerRef.current) {
@@ -84,59 +103,31 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
             if (progressIntervalRef.current) {
                 clearInterval(progressIntervalRef.current);
             }
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
         };
     }, []);
 
-    // Helper function to start progress animation
-    const startProgressAnimation = useCallback(() => {
-        setSilenceProgress(0);
-        const startTime = Date.now();
-
-        if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-        }
-
-        progressIntervalRef.current = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min((elapsed / SILENCE_TIMEOUT) * 100, 100);
-            setSilenceProgress(progress);
-
-            if (progress >= 100) {
-                if (progressIntervalRef.current) {
-                    clearInterval(progressIntervalRef.current);
-                    progressIntervalRef.current = null;
-                }
-            }
-        }, PROGRESS_INTERVAL);
-    }, [SILENCE_TIMEOUT]);
-
-    // Helper function to stop progress animation
-    const stopProgressAnimation = useCallback(() => {
-        if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-        }
-        setSilenceProgress(0);
-    }, []);
-
+    // Initialize Web Speech API
     useEffect(() => {
-        // Check if Speech Recognition is supported
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            setIsSupported(false);
+            if (sttMode === 'web-speech') {
+                setIsSupported(false);
+            }
             return;
         }
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = true; // Keep listening
+        recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'en-US'; // Default to English
-        recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
+        recognition.lang = 'en-US';
+        recognition.maxAlternatives = 3;
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = '';
 
-            // Clear any existing silence timer and progress when we get new results
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
@@ -160,10 +151,7 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                     onTranscriptRef.current(finalTranscript);
                 }
 
-                // Only start silence detection timer if auto-send is enabled
-                // If no new speech for SILENCE_TIMEOUT, auto-stop and send
                 if (autoSendEnabledRef.current) {
-                    // Start progress animation
                     const startTime = Date.now();
                     setSilenceProgress(0);
 
@@ -178,7 +166,6 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                     }, PROGRESS_INTERVAL);
 
                     silenceTimerRef.current = setTimeout(() => {
-                        // Stop progress animation
                         if (progressIntervalRef.current) {
                             clearInterval(progressIntervalRef.current);
                             progressIntervalRef.current = null;
@@ -189,7 +176,6 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                             const transcript = accumulatedTranscriptRef.current.trim();
                             recognitionRef.current.stop();
 
-                            // Auto-send the transcript
                             if (onAutoSendRef.current) {
                                 setTimeout(() => {
                                     if (onAutoSendRef.current) {
@@ -205,7 +191,6 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-            // Clear silence timer and progress on error
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
@@ -215,7 +200,6 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                 progressIntervalRef.current = null;
             }
             setSilenceProgress(0);
-            // Ignore 'aborted' errors as they're expected when stopping
             if (event.error === 'aborted') {
                 return;
             }
@@ -225,7 +209,6 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
         };
 
         recognition.onend = () => {
-            // Clear silence timer and progress
             if (silenceTimerRef.current) {
                 clearTimeout(silenceTimerRef.current);
                 silenceTimerRef.current = null;
@@ -251,51 +234,192 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                 recognitionRef.current.abort();
             }
         };
-    }, []); // Empty dependency array - only run once
+    }, []);
 
-    const toggleRecording = useCallback(() => {
-        if (!isSupported || !recognitionRef.current) {
+    // Convert audio blob to 16kHz Float32Array for Whisper
+    const convertAudioForWhisper = useCallback(async (audioBlob: Blob): Promise<Float32Array> => {
+        const audioContext = new AudioContext({ sampleRate: 16000 });
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        // Get the first channel (mono)
+        const channelData = audioBuffer.getChannelData(0);
+
+        // If already 16kHz, return as is
+        if (audioBuffer.sampleRate === 16000) {
+            await audioContext.close();
+            return channelData;
+        }
+
+        // Resample to 16kHz
+        const offlineContext = new OfflineAudioContext(1, audioBuffer.duration * 16000, 16000);
+        const source = offlineContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineContext.destination);
+        source.start();
+
+        const resampledBuffer = await offlineContext.startRendering();
+        await audioContext.close();
+
+        return resampledBuffer.getChannelData(0);
+    }, []);
+
+    // Whisper mode: send audio to API for transcription
+    const transcribeWithWhisper = useCallback(async (audioBlob: Blob) => {
+        setIsProcessing(true);
+        try {
+            // Convert audio to Float32Array for Whisper
+            const audioData = await convertAudioForWhisper(audioBlob);
+
+            // Send as JSON with Float32Array data
+            const response = await fetch('/api/stt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    audio: Array.from(audioData), // Convert to regular array for JSON
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Transcription failed');
+            }
+
+            const data = await response.json();
+            const transcript = data.transcript?.trim();
+
+            if (transcript) {
+                if (onTranscriptRef.current) {
+                    onTranscriptRef.current(transcript);
+                }
+                if (onAutoSendRef.current) {
+                    onAutoSendRef.current(transcript);
+                }
+            }
+        } catch (error) {
+            console.error('Whisper transcription error:', error);
+            alert('Failed to transcribe audio. Make sure the Whisper model is properly set up.');
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [convertAudioForWhisper]);
+
+    // Start recording with MediaRecorder (for Whisper mode)
+    const startWhisperRecording = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+            });
+
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                audioChunksRef.current = [];
+
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach(track => track.stop());
+                    streamRef.current = null;
+                }
+
+                await transcribeWithWhisper(audioBlob);
+            };
+
+            mediaRecorderRef.current = mediaRecorder;
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (error) {
+            console.error('Failed to start recording:', error);
+            alert('Failed to access microphone. Please ensure microphone permissions are granted.');
+        }
+    }, [transcribeWithWhisper]);
+
+    // Stop recording with MediaRecorder (for Whisper mode)
+    const stopWhisperRecording = useCallback(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    }, []);
+
+    // Start recording with Web Speech API
+    const startWebSpeechRecording = useCallback(() => {
+        if (!recognitionRef.current) {
             alert('Speech recognition is not supported in your browser. Please use Chrome.');
             return;
         }
 
-        if (isRecording) {
-            // Capture the transcript BEFORE stopping
-            const transcript = accumulatedTranscriptRef.current.trim();
+        accumulatedTranscriptRef.current = '';
+        shouldAutoSendRef.current = false;
+        try {
+            recognitionRef.current.start();
+            setIsRecording(true);
+        } catch (error) {
+            console.error('Failed to start recognition:', error);
+        }
+    }, []);
 
-            // Stop the recognition
-            recognitionRef.current.stop();
+    // Stop recording with Web Speech API
+    const stopWebSpeechRecording = useCallback(() => {
+        if (!recognitionRef.current) return;
 
-            // Auto-send if there's a transcript
-            if (transcript && onAutoSend) {
-                // Use setTimeout to ensure UI updates first
-                setTimeout(() => {
-                    onAutoSend(transcript);
-                }, 50);
+        const transcript = accumulatedTranscriptRef.current.trim();
+        recognitionRef.current.stop();
+
+        if (transcript && onAutoSendRef.current) {
+            setTimeout(() => {
+                if (onAutoSendRef.current) {
+                    onAutoSendRef.current(transcript);
+                }
+            }, 50);
+        }
+    }, []);
+
+    const toggleRecording = useCallback(() => {
+        if (isProcessing) return;
+
+        if (sttModeRef.current === 'whisper') {
+            if (isRecording) {
+                stopWhisperRecording();
+            } else {
+                startWhisperRecording();
             }
         } else {
-            // Reset accumulated transcript when starting new recording
-            accumulatedTranscriptRef.current = '';
-            shouldAutoSendRef.current = false;
-            try {
-                recognitionRef.current.start();
-                setIsRecording(true);
-            } catch (error) {
-                console.error('Failed to start recognition:', error);
+            if (!isSupported) {
+                alert('Speech recognition is not supported in your browser. Please use Chrome.');
+                return;
+            }
+            if (isRecording) {
+                stopWebSpeechRecording();
+            } else {
+                startWebSpeechRecording();
             }
         }
-    }, [isSupported, isRecording, onAutoSend]);
+    }, [isRecording, isSupported, isProcessing, startWhisperRecording, stopWhisperRecording, startWebSpeechRecording, stopWebSpeechRecording]);
 
     // Calculate SVG circle properties for progress ring
     const circleRadius = 26;
     const circleCircumference = 2 * Math.PI * circleRadius;
     const strokeDashoffset = circleCircumference - (silenceProgress / 100) * circleCircumference;
 
+    // Whisper mode doesn't need isSupported check since it uses MediaRecorder
+    const isDisabled = sttMode === 'web-speech' ? !isSupported : false;
+
     return (
         <div className={styles.container}>
             <div className={styles.buttonWrapper}>
-                {/* Progress ring SVG */}
-                {isRecording && autoSendEnabled && (
+                {/* Progress ring SVG - only for Web Speech mode */}
+                {isRecording && autoSendEnabled && sttMode === 'web-speech' && (
                     <svg className={styles.progressRing} viewBox="0 0 60 60">
                         <circle
                             className={styles.progressRingBg}
@@ -320,23 +444,24 @@ export default function VoiceInput({ onTranscript, onAutoSend, autoSendEnabled =
                 )}
                 <button
                     type="button"
-                    className={`${styles.button} ${isRecording ? styles.recording : ''}`}
+                    className={`${styles.button} ${isRecording ? styles.recording : ''} ${isProcessing ? styles.processing : ''}`}
                     onClick={toggleRecording}
-                    aria-label={isRecording ? "Stop recording" : "Start recording"}
-                    disabled={!isSupported}
-                    title={!isSupported ? "Speech recognition not supported" : undefined}
+                    aria-label={isProcessing ? "Processing" : isRecording ? "Stop recording" : "Start recording"}
+                    disabled={isDisabled || isProcessing}
+                    title={isDisabled ? "Speech recognition not supported" : isProcessing ? "Processing audio..." : undefined}
                 >
-                    {isRecording ? (
+                    {isProcessing ? (
+                        <Loader2 size={22} className={styles.spinner} />
+                    ) : isRecording ? (
                         <MicOff size={22} />
                     ) : (
                         <Mic size={22} />
                     )}
                 </button>
             </div>
-            {!isSupported && (
+            {!isSupported && sttMode === 'web-speech' && (
                 <p className={styles.unsupported}>Speech not supported</p>
             )}
         </div>
     );
 }
-

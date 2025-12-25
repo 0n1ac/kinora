@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import styles from './page.module.css';
-import VoiceInput from '@/components/VoiceInput';
+import VoiceInput, { SttMode } from '@/components/VoiceInput';
 import ChatMessage from '@/components/ChatMessage';
 import Settings from '@/components/Settings';
 
@@ -24,6 +24,7 @@ export default function Home() {
   const [nativeLanguage, setNativeLanguage] = useState('Korean');
   const [autoHideContent, setAutoHideContent] = useState(true);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [sttMode, setSttMode] = useState<SttMode>('web-speech');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -151,6 +152,8 @@ export default function Home() {
         onNativeLanguageChange={setNativeLanguage}
         autoHideContent={autoHideContent}
         onAutoHideContentChange={setAutoHideContent}
+        sttMode={sttMode}
+        onSttModeChange={(mode) => setSttMode(mode as SttMode)}
       />
 
       <div className={styles.interactionArea}>
@@ -209,6 +212,7 @@ export default function Home() {
             onAutoSend={sendMessage}
             autoSendEnabled={autoSendEnabled}
             onRecordingChange={setIsVoiceRecording}
+            sttMode={sttMode}
           />
         </form>
       </div>

@@ -18,6 +18,8 @@ interface SettingsProps {
     onNativeLanguageChange: (language: string) => void;
     autoHideContent: boolean;
     onAutoHideContentChange: (enabled: boolean) => void;
+    sttMode: string;
+    onSttModeChange: (mode: string) => void;
 }
 
 const VOICE_OPTIONS = [
@@ -38,6 +40,11 @@ const LANGUAGE_OPTIONS = [
     { value: 'Chinese', label: '中文' },
 ];
 
+const STT_OPTIONS = [
+    { value: 'web-speech', label: 'Web Speech (Real-time)' },
+    { value: 'whisper', label: 'Whisper (Accurate)' },
+];
+
 export default function Settings({
     autoSendEnabled,
     onAutoSendChange,
@@ -52,7 +59,9 @@ export default function Settings({
     nativeLanguage,
     onNativeLanguageChange,
     autoHideContent,
-    onAutoHideContentChange
+    onAutoHideContentChange,
+    sttMode,
+    onSttModeChange
 }: SettingsProps) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -200,6 +209,28 @@ export default function Settings({
                                 onChange={(e) => onVoiceChange(e.target.value)}
                             >
                                 {VOICE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className={styles.settingItem}>
+                        <div className={styles.settingInfo}>
+                            <span className={styles.settingLabel}>Speech Recognition</span>
+                            <span className={styles.settingDescription}>
+                                Choose speech-to-text engine
+                            </span>
+                        </div>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                className={styles.select}
+                                value={sttMode}
+                                onChange={(e) => onSttModeChange(e.target.value)}
+                            >
+                                {STT_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>

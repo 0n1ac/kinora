@@ -92,3 +92,28 @@
     color: var(--text-secondary);
     text-align: center;
 }
+
+.processing {
+    background: rgba(99, 102, 241, 0.3);
+    border-color: var(--brand-primary);
+    cursor: wait;
+}
+
+.processing:hover {
+    background: rgba(99, 102, 241, 0.3);
+    transform: none;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
