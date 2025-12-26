@@ -56,6 +56,25 @@ export default function Home() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Global audio management - stop any playing audio when new one starts
+  const currentPlayingAudioRef = useRef<{ stop: () => void } | null>(null);
+
+  const stopCurrentAudio = useCallback(() => {
+    if (currentPlayingAudioRef.current) {
+      currentPlayingAudioRef.current.stop();
+      currentPlayingAudioRef.current = null;
+    }
+  }, []);
+
+  const registerPlayingAudio = useCallback((stopFn: () => void) => {
+    stopCurrentAudio();
+    currentPlayingAudioRef.current = { stop: stopFn };
+  }, [stopCurrentAudio]);
+
+  const unregisterPlayingAudio = useCallback(() => {
+    currentPlayingAudioRef.current = null;
+  }, []);
+
   // Load data from localStorage on mount
   useEffect(() => {
     const settings = loadSettings();
@@ -171,6 +190,7 @@ export default function Home() {
       setMessages(conv.messages);
       setInput("");
       setIsLoading(false);
+      setHasUserInteractedWithTTS(false); // Reset to prevent auto-play of last message
     }
   };
 
@@ -397,6 +417,8 @@ export default function Home() {
                   speechRate={speechRate}
                   speechPitch={speechPitch}
                   autoHideContent={autoHideContent}
+                  onRegisterAudio={registerPlayingAudio}
+                  onUnregisterAudio={unregisterPlayingAudio}
                 />
               );
             })}

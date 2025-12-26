@@ -106,6 +106,13 @@ export default function ChatHistory({
         }
     };
 
+    const formatCreatedDate = (timestamp: number): string => {
+        const date = new Date(timestamp);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}/${day}`;
+    };
+
     // Only count conversations with messages
     const conversationCount = conversations.filter(c => c.messages.length > 0).length;
 
@@ -182,6 +189,7 @@ export default function ChatHistory({
                                             />
                                         ) : (
                                             <div className={styles.conversationTitle}>
+                                                <span className={styles.createdDate}>{formatCreatedDate(conversation.createdAt)}</span>
                                                 {conversation.title}
                                             </div>
                                         )}

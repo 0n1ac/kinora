@@ -15,6 +15,8 @@ interface ChatMessageProps {
     speechRate?: number;
     speechPitch?: number;
     autoHideContent?: boolean;
+    onRegisterAudio?: (stopFn: () => void) => void;
+    onUnregisterAudio?: () => void;
 }
 
 interface ParsedResponse {
@@ -49,7 +51,9 @@ export default function ChatMessage({
     selectedVoice = 'en-US-JennyNeural',
     speechRate = 0,
     speechPitch = 0,
-    autoHideContent = true
+    autoHideContent = true,
+    onRegisterAudio,
+    onUnregisterAudio
 }: ChatMessageProps) {
     // Parse content for assistant messages
     const parsedContent = useMemo(() => {
@@ -88,6 +92,7 @@ export default function ChatMessage({
             audioElement.currentTime = 0;
             setIsPlaying(false);
             isSpeakingRef.current = false;
+            onUnregisterAudio?.();
             return;
         }
 
@@ -97,6 +102,18 @@ export default function ChatMessage({
         // Set speaking flag immediately to prevent race conditions
         isSpeakingRef.current = true;
         setIsPlaying(true);
+
+        // Create a stop function and register it globally
+        const createStopFn = (audio: HTMLAudioElement, audioUrl: string) => {
+            return () => {
+                audio.pause();
+                audio.currentTime = 0;
+                setIsPlaying(false);
+                isSpeakingRef.current = false;
+                URL.revokeObjectURL(audioUrl);
+                setAudioElement(null);
+            };
+        };
 
         try {
             // Fetch audio from Edge TTS API with selected voice, rate and pitch
@@ -118,10 +135,14 @@ export default function ChatMessage({
             const audio = new Audio(audioUrl);
             setAudioElement(audio);
 
+            // Register this audio globally so other messages can stop it
+            onRegisterAudio?.(createStopFn(audio, audioUrl));
+
             audio.onended = () => {
                 setIsPlaying(false);
                 isSpeakingRef.current = false;
                 URL.revokeObjectURL(audioUrl);
+                onUnregisterAudio?.();
                 onSpeakComplete?.();
             };
 
@@ -129,6 +150,7 @@ export default function ChatMessage({
                 setIsPlaying(false);
                 isSpeakingRef.current = false;
                 URL.revokeObjectURL(audioUrl);
+                onUnregisterAudio?.();
             };
 
             await audio.play();
@@ -141,22 +163,33 @@ export default function ChatMessage({
                 const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = 'en-US';
                 utterance.rate = 0.9;
+
+                // Register stop function for speech synthesis
+                onRegisterAudio?.(() => {
+                    window.speechSynthesis.cancel();
+                    setIsPlaying(false);
+                    isSpeakingRef.current = false;
+                });
+
                 utterance.onend = () => {
                     setIsPlaying(false);
                     isSpeakingRef.current = false;
+                    onUnregisterAudio?.();
                     onSpeakComplete?.();
                 };
                 utterance.onerror = () => {
                     setIsPlaying(false);
                     isSpeakingRef.current = false;
+                    onUnregisterAudio?.();
                 };
                 window.speechSynthesis.speak(utterance);
             } else {
                 setIsPlaying(false);
                 isSpeakingRef.current = false;
+                onUnregisterAudio?.();
             }
         }
-    }, [parsedContent.answer, isPlaying, audioElement, onUserInteraction, onSpeakComplete, selectedVoice, speechRate, speechPitch]);
+    }, [parsedContent.answer, isPlaying, audioElement, onUserInteraction, onSpeakComplete, selectedVoice, speechRate, speechPitch, onRegisterAudio, onUnregisterAudio]);
 
     // Auto-speak only if user has already interacted (not first message)
     useEffect(() => {
